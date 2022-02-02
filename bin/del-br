@@ -1,0 +1,52 @@
+#!/bin/sh
+
+set -ef
+
+if [ ! -x "$(command -v basename)" ]; then
+    printf "%s\n" "The command 'basename' does not seem to be installed. Install it first!" >&2
+    exit 1
+
+elif [ ! -x "$(command -v pgrep)" ]; then
+    printf "%s\n" "The package 'pgrep' does not seem to be installed! Install it first!" >&2
+    exit 1
+
+elif [ ! -x "$(command -v ip)" ]; then
+    printf "%s\n" "The package 'iproute2' does not seem to be installed! Install it first!" >&2
+    exit 1
+
+fi
+
+BRIDGE_INTERFACES=""
+
+while [ $# -gt 0 ]; do
+    case "${1}" in
+        -h|--help)
+            printf "%s\n" "Usage: $(basename "${0}") <BRIDGE> <BRIDGE> ...
+
+Options:
+  <BRIDGE>  Specify the bridge to delete (Example: br0)"
+            exit 0
+            ;;
+        *)
+            BRIDGE_INTERFACES="${BRIDGE_INTERFACES} ${1}"
+            shift
+            ;;
+    esac
+done
+
+if [ -z "${BRIDGE_INTERFACES}" ]; then
+    printf "%s\n" "Please specify at least one bridge interface to delete!" >&2
+    exit 1
+
+else
+    for BRIDGE in ${BRIDGE_INTERFACES}; do
+        if ip a show "${BRIDGE}" >/dev/null 2>&1; then
+            DNSMASQ_PID="$(pgrep -f "dnsmasq * --interface=${BRIDGE} *")" && \
+            kill -9 "${DNSMASQ_PID}"
+            ip link set dev "${BRIDGE}" down
+            ip link delete "${BRIDGE}"
+        else
+            printf "%s\n" "${BRIDGE} does not exist!" >&2
+        fi
+    done
+fi

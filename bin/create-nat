@@ -1,0 +1,80 @@
+#!/bin/sh
+
+set -ef
+
+if [ ! -x "$(command -v basename)" ]; then
+    printf "%s\n" "The command 'basename' does not seem to be installed. Install it first!" >&2
+    exit 1
+
+elif [ ! -x "$(command -v ip)" ]; then
+    printf "%s\n" "The package 'iproute2' does not seem to be installed! Install it first!" >&2
+    exit 1
+fi
+
+while [ $# -gt 0 ]; do
+    case "${1}" in
+        -h|--help)
+            printf "%s\n" "Usage: $(basename "${0}") -b <BRIDGE> -i <INTERFACE>
+
+Options:
+  -b <BRIDGE>     Specify the name of the bridge (Example: br0)
+  -i <INTERFACE>  Specify the interface to be used for routing (Example: eth0)"
+            exit 0
+            ;;
+        -b|--bridge)
+            BRIDGE="${2}"
+            shift 2
+            ;;
+        -i|--interface)
+            INTERFACE="${2}"
+            shift 2
+            ;;
+        *)
+            printf "%s\n" "Invalid parameter: ${1}" >&2
+            exit 1
+            ;;
+    esac
+done
+
+if [ -z "${BRIDGE}" ] || [ -z "${INTERFACE}" ]; then
+    printf "%s\n" "Please specify all the options!" >&2
+    exit 1
+
+elif ! ip a show "${BRIDGE}" >/dev/null 2>&1; then
+    printf "%s\n" "The specified bridge does not exist!" >&2
+    exit 1
+
+elif ! ip a show "${INTERFACE}" >/dev/null 2>&1; then
+    printf "%s\n" "The specified interface does not exist!" >&2
+    exit 1
+fi
+
+if [ -x "$(command -v sysctl)" ]; then
+    sysctl -w net.ipv4.ip_forward=1 >/dev/null
+else
+    printf "%s\n" "WARNING: You don't have 'sysctl' installed. IP forwarding is not enabled by the script!" >&2
+fi
+
+# Rules taken from: https://wiki.archlinux.org/title/Internet_sharing#Enable_NAT
+if [ -x "$(command -v nft)" ]; then
+    nft add table inet nat
+    nft add chain inet nat postrouting '{ type nat hook postrouting priority 100 ; }'
+    nft add rule inet nat postrouting oifname "${INTERFACE}" masquerade
+
+    if ! nft list table inet filter >/dev/null 2>&1; then
+        nft add table inet filter
+    fi
+
+    nft add chain inet filter forward '{ type filter hook forward priority 0; policy drop; }'
+    nft add rule inet filter forward ct state related,established accept
+    nft add rule inet filter forward iifname "${BRIDGE}" oifname "${INTERFACE}" accept
+
+elif [ -x "$(command -v iptables)" ]; then
+    iptables -t nat -A POSTROUTING -o "${INTERFACE}" -j MASQUERADE
+    iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+    iptables -A FORWARD -i "${BRIDGE}" -o "${INTERFACE}" -j ACCEPT
+
+else
+    printf "%s\n" "Install either 'nftables' or 'iptables' (nftables recommended)!" >&2
+    exit 1
+fi

@@ -1,0 +1,46 @@
+#!/bin/sh
+
+set -ef
+
+if [ ! -x "$(command -v basename)" ]; then
+    printf "%s\n" "The command 'basename' does not seem to be installed. Install it first!" >&2
+    exit 1
+
+elif [ ! -x "$(command -v ip)" ]; then
+    printf "%s\n" "The package 'iproute2' does not seem to be installed! Install it first!" >&2
+    exit 1
+
+fi
+
+TAP_INTERFACES=""
+
+while [ $# -gt 0 ]; do
+    case "${1}" in
+        -h|--help)
+            printf "%s\n" "Usage: $(basename "${0}") <TAP> <TAP> ...
+
+Options:
+  <TAP>  Specify the tap interfaces to delete (Example: tap0)"
+            exit 0
+            ;;
+        *)
+            TAP_INTERFACES="${TAP_INTERFACES} ${1}"
+            shift
+            ;;
+    esac
+done
+
+if [ -z "${TAP_INTERFACES}" ]; then
+    printf "%s\n" "Please specify at least one tap interface to delete!" >&2
+    exit 1
+
+else
+    for TAP in ${TAP_INTERFACES}; do
+        if ip a show "${TAP}" >/dev/null 2>&1; then
+            ip link set dev "${TAP}" down
+            ip link delete "${TAP}"
+        else
+            printf "%s\n" "${TAP} does not exist!" >&2
+        fi
+    done
+fi

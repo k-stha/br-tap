@@ -1,0 +1,71 @@
+#!/bin/sh
+
+set -ef
+
+if [ ! -x "$(command -v basename)" ]; then
+    printf "%s\n" "The command 'basename' does not seem to be installed. Install it first!" >&2
+    exit 1
+
+elif [ ! -x "$(command -v ip)" ]; then
+    printf "%s\n" "The package 'iproute2' does not seem to be installed! Install it first!" >&2
+    exit 1
+fi
+
+RUN_DNSMASQ=0
+
+while [ $# -gt 0 ]; do
+    case "${1}" in
+        -h|--help)
+            printf "%s\n" "Usage: $(basename "${0}") -b <BRIDGE> -n <NETWORK> [-F <IP>,<IP>]
+
+Options:
+  -b <BRIDGE>   Specify the name of the bridge (Example: br0)
+  -n <NETWORK>  Specify the network for the bridge (Example: 10.0.0.1/24)
+  -F <IP>,<IP>  Enable DHCP in the given range (Example: 10.0.0.2,10.0.0.254)
+                (requires 'dnsmasq' or 'dnsmasq-base' package to be installed)"
+            exit 0
+            ;;
+        -b|--bridge)
+            BRIDGE="${2}"
+            shift 2
+            ;;
+        -n|--network)
+            NETWORK="${2}"
+            shift 2
+            ;;
+        -F|--dhcp-range)
+            RUN_DNSMASQ=1
+            DHCP_RANGE="${2}"
+            shift 2
+            ;;
+        *)
+            printf "%s\n" "Invalid parameter: ${1}" >&2
+            exit 1
+            ;;
+    esac
+done
+
+if [ -z "${BRIDGE}" ] || [ -z "${NETWORK}" ]; then
+    printf "%s\n" "Please specify all the required options!" >&2
+    exit 1
+fi
+
+if ! ip a show "${BRIDGE}" >/dev/null 2>&1; then
+    ip link add "${BRIDGE}" type bridge
+
+    # Taken from: https://wiki.archlinux.org/title/QEMU#Host-only_networking
+    ip addr add "${NETWORK}" dev "${BRIDGE}"
+    ip link set "${BRIDGE}" up
+
+    if [ "${RUN_DNSMASQ}" = 1 ]; then
+        if [ -x "$(command -v dnsmasq)" ]; then
+            dnsmasq --interface="${BRIDGE}" --bind-interfaces --dhcp-range="${DHCP_RANGE}"
+        else
+            printf "%s\n" "WARNING: dnsmasq does not seem to be installed. DHCP server is not running on the bridge!" >&2
+        fi
+    fi
+
+else
+    printf "%s\n" "${BRIDGE} already exists!" >&2
+    exit 1
+fi

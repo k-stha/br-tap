@@ -1,0 +1,70 @@
+#!/bin/sh
+
+set -ef
+
+if [ ! -x "$(command -v basename)" ]; then
+    printf "%s\n" "The command 'basename' does not seem to be installed. Install it first!" >&2
+    exit 1
+
+elif [ ! -x "$(command -v ip)" ]; then
+    printf "%s\n" "The package 'iproute2' does not seem to be installed! Install it first!" >&2
+    exit 1
+
+elif [ ! -x "$(command -v sleep)" ]; then
+    printf "%s\n" "The command 'sleep' does not seem to be installed. Install it first!" >&2
+    exit 1
+fi
+
+TAP_INTERFACES=""
+
+while [ $# -gt 0 ]; do
+    case "${1}" in
+        -h|--help)
+            printf "%s\n" "Usage: $(basename "${0}") -u <USER> -b <BRIDGE> <TAP> <TAP> ...
+
+Options:
+  -u <USER>    Specify the user to assign the tap interfaces
+  -b <BRIDGE>  Specify the bridge to be used for the tap interfaces (Example: br0)
+  <TAP>        Specify the tap interfaces to create (Example: tap0 tap1 ...)"
+            exit 0
+            ;;
+        -b|--bridge)
+            BRIDGE="${2}"
+            shift 2
+            ;;
+        -u|--user)
+            USER="${2}"
+            shift 2
+            ;;
+        *)
+            TAP_INTERFACES="${TAP_INTERFACES} ${1}"
+            shift
+            ;;
+    esac
+done
+
+if [ -z "${BRIDGE}" ] || [ -z "${USER}" ] || [ -z "${TAP_INTERFACES}" ]; then
+    printf "%s\n" "Please specify all the options!" >&2
+    exit 1
+
+elif ! ip a show "${BRIDGE}" >/dev/null 2>&1; then
+    printf "%s\n" "The specified bridge does not exist!" >&2
+    exit 1
+
+elif ! id "${USER}" >/dev/null 2>&1; then
+    printf "%s\n" "The specified user does not exist!" >&2
+    exit 1
+fi
+
+for TAP in ${TAP_INTERFACES}; do
+    if ! ip a show "${TAP}" >/dev/null 2>&1; then
+        # Taken from: https://www.linux-kvm.org/page/Networking
+        ip tuntap add "${TAP}" mode tap user "${USER}"
+        ip link set "${TAP}" up
+        sleep 1
+        ip link set "${TAP}" master "${BRIDGE}"
+
+    else
+        printf "%s\n" "${TAP} already exists!" >&2
+    fi
+done
