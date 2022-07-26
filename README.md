@@ -7,7 +7,7 @@ tap interfaces, and enable NAT on a Unix-like machine.
 
 ## Table of Contents
 
-- [Dependencies](#dependancies)
+- [Dependencies](#dependencies)
 - [Scripts](#scripts)
 - [Contributing Guidelines](#contributing-guidelines)
 
