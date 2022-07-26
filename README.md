@@ -5,7 +5,13 @@ Create bridge and tap interfaces easily
 These are the scripts that could be used for creating and removing bridge and
 tap interfaces, and enable NAT on a Unix-like machine.
 
-## Dependancies
+## Table of Contents
+
+- [Dependencies](#dependancies)
+- [Scripts](#scripts)
+- [Contributing Guidelines](#contributing-guidelines)
+
+## Dependencies
 
 - iproute2
 - nftables or iptables (nftables recommended)
@@ -26,3 +32,7 @@ tap interfaces, and enable NAT on a Unix-like machine.
 disabling IP forwarding, along with other critical information, such as why
 some (obvious) things are not implemented. So, please read it before running
 the scripts.
+
+## Contributing Guidelines
+
+See [CONTRIBUTING.md](CONTRIBUTING.md)
