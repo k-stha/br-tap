@@ -9,7 +9,7 @@ tap interfaces, and enable NAT on a Unix-like machine.
 
 - [Dependencies](#dependencies)
 - [Scripts](#scripts)
-- [Contributing Guidelines](#contributing-guidelines)
+- [Contribution Guidelines](#contribution-guidelines)
 
 ## Dependencies
 
@@ -33,6 +33,6 @@ disabling IP forwarding, along with other critical information, such as why
 some (obvious) things are not implemented. So, please read it before running
 the scripts.
 
-## Contributing Guidelines
+## Contribution Guidelines
 
 See [CONTRIBUTING.md](CONTRIBUTING.md)
